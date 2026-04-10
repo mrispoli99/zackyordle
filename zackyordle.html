@@ -1,0 +1,1183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Zackyordle</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;1,400&family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --cream: #f5f0e8;
+    --dark: #1a1208;
+    --gold: #c9a84c;
+    --red: #c0392b;
+    --green: #27ae60;
+    --mid: #6b5c3e;
+    --light-mid: #d4c8b0;
+  }
+
+  body {
+    background: var(--cream);
+    color: var(--dark);
+    font-family: 'DM Sans', sans-serif;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    overflow-x: hidden;
+  }
+
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background:
+      radial-gradient(ellipse 80% 60% at 20% 10%, rgba(201,168,76,0.12) 0%, transparent 60%),
+      radial-gradient(ellipse 60% 80% at 85% 90%, rgba(201,168,76,0.08) 0%, transparent 60%);
+    pointer-events: none;
+  }
+
+  .wrapper {
+    width: 100%;
+    max-width: 560px;
+    position: relative;
+  }
+
+  header {
+    text-align: center;
+    margin-bottom: 36px;
+  }
+
+  .logo {
+    font-family: 'Playfair Display', serif;
+    font-size: clamp(2.4rem, 6vw, 3.4rem);
+    font-weight: 700;
+    letter-spacing: -1px;
+    line-height: 1;
+    color: var(--dark);
+  }
+
+  .logo em {
+    font-style: italic;
+    font-weight: 400;
+    color: var(--gold);
+  }
+
+  .tagline {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.72rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--mid);
+    margin-top: 8px;
+  }
+
+  /* LIVES */
+  .lives {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    margin-bottom: 28px;
+  }
+
+  .life {
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    border: 2px solid var(--dark);
+    background: var(--dark);
+    transition: background 0.3s, transform 0.2s;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .life::after {
+    content: '♪';
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    color: var(--cream);
+    line-height: 34px;
+    text-align: center;
+  }
+
+  .life.used {
+    background: transparent;
+    border-color: var(--light-mid);
+  }
+
+  .life.used::after {
+    color: var(--light-mid);
+  }
+
+  /* WAVEFORM / PLAYER */
+  .player-card {
+    background: var(--dark);
+    border-radius: 16px;
+    padding: 28px 28px 22px;
+    margin-bottom: 20px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .player-card::before {
+    content: '';
+    position: absolute;
+    top: -40px; right: -40px;
+    width: 160px; height: 160px;
+    border-radius: 50%;
+    background: rgba(201,168,76,0.07);
+    pointer-events: none;
+  }
+
+  .round-label {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.65rem;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--gold);
+    margin-bottom: 16px;
+  }
+
+  /* Waveform bars */
+  .waveform {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    height: 60px;
+    margin-bottom: 20px;
+  }
+
+  .bar {
+    flex: 1;
+    border-radius: 2px;
+    transition: height 0.15s ease, background 0.3s;
+    min-width: 3px;
+  }
+
+  .bar.played {
+    background: var(--gold);
+  }
+
+  .bar.unplayed {
+    background: rgba(255,255,255,0.15);
+  }
+
+  /* Progress / time info */
+  .time-info {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+  }
+
+  .time-display {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.8rem;
+    color: rgba(255,255,255,0.5);
+  }
+
+  .reveal-label {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.7rem;
+    color: var(--gold);
+    letter-spacing: 0.1em;
+  }
+
+  /* Play button */
+  .play-btn {
+    width: 100%;
+    background: var(--gold);
+    border: none;
+    border-radius: 10px;
+    padding: 14px;
+    font-family: 'DM Mono', monospace;
+    font-size: 0.85rem;
+    font-weight: 500;
+    letter-spacing: 0.1em;
+    color: var(--dark);
+    cursor: pointer;
+    transition: opacity 0.2s, transform 0.15s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+  }
+
+  .play-btn:hover { opacity: 0.88; transform: translateY(-1px); }
+  .play-btn:active { transform: translateY(0); }
+  .play-btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+
+  .play-icon { font-size: 1.1rem; }
+
+  /* GUESSES */
+  .guesses-section { margin-bottom: 20px; }
+
+  .guess-slots {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 14px;
+  }
+
+  .guess-slot {
+    border-radius: 10px;
+    padding: 12px 16px;
+    font-family: 'DM Mono', monospace;
+    font-size: 0.82rem;
+    min-height: 46px;
+    display: flex;
+    align-items: center;
+    transition: all 0.3s;
+  }
+
+  .guess-slot.empty {
+    border: 2px dashed var(--light-mid);
+    color: var(--light-mid);
+  }
+
+  .guess-slot.empty.active {
+    border-color: var(--gold);
+    background: rgba(201,168,76,0.05);
+  }
+
+  .guess-slot.wrong {
+    border: 2px solid var(--red);
+    background: rgba(192,57,43,0.07);
+    color: var(--red);
+  }
+
+  .guess-slot.skipped {
+    border: 2px solid var(--mid);
+    background: rgba(107,92,62,0.07);
+    color: var(--mid);
+    font-style: italic;
+  }
+
+  .guess-slot.correct {
+    border: 2px solid var(--green);
+    background: rgba(39,174,96,0.1);
+    color: var(--green);
+    font-weight: 500;
+  }
+
+  .guess-slot .icon {
+    margin-right: 10px;
+    font-size: 1rem;
+    flex-shrink: 0;
+  }
+
+  /* INPUT ROW */
+  .input-row {
+    display: flex;
+    gap: 8px;
+  }
+
+  .song-input {
+    flex: 1;
+    border: 2px solid var(--dark);
+    border-radius: 10px;
+    padding: 12px 16px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.9rem;
+    background: white;
+    color: var(--dark);
+    outline: none;
+    transition: border-color 0.2s;
+  }
+
+  .song-input:focus { border-color: var(--gold); }
+  .song-input::placeholder { color: var(--light-mid); }
+  .song-input:disabled { opacity: 0.5; }
+
+  /* Autocomplete */
+  .autocomplete-wrap { position: relative; flex: 1; }
+
+  .suggestions {
+    position: absolute;
+    bottom: calc(100% + 6px);
+    left: 0; right: 0;
+    background: white;
+    border: 2px solid var(--dark);
+    border-radius: 10px;
+    overflow: hidden;
+    z-index: 100;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+    max-height: 220px;
+    overflow-y: auto;
+  }
+
+  .suggestion-item {
+    padding: 11px 16px;
+    cursor: pointer;
+    font-size: 0.88rem;
+    font-family: 'DM Sans', sans-serif;
+    border-bottom: 1px solid var(--cream);
+    transition: background 0.15s;
+  }
+
+  .suggestion-item:last-child { border-bottom: none; }
+  .suggestion-item:hover, .suggestion-item.highlighted { background: var(--cream); }
+
+  .guess-btn, .skip-btn {
+    border-radius: 10px;
+    padding: 12px 18px;
+    font-family: 'DM Mono', monospace;
+    font-size: 0.8rem;
+    font-weight: 500;
+    cursor: pointer;
+    border: 2px solid var(--dark);
+    transition: all 0.2s;
+    white-space: nowrap;
+  }
+
+  .guess-btn {
+    background: var(--dark);
+    color: var(--cream);
+  }
+
+  .guess-btn:hover { opacity: 0.85; }
+  .guess-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+
+  .skip-btn {
+    background: transparent;
+    color: var(--mid);
+    border-color: var(--light-mid);
+  }
+
+  .skip-btn:hover { border-color: var(--mid); color: var(--dark); }
+  .skip-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+
+  /* RESULT OVERLAY */
+  .result-overlay {
+    display: none;
+    background: var(--dark);
+    border-radius: 16px;
+    padding: 32px 28px;
+    text-align: center;
+    animation: slideUp 0.4s cubic-bezier(0.34,1.56,0.64,1);
+  }
+
+  .result-overlay.show { display: block; }
+
+  @keyframes slideUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .result-emoji { font-size: 3rem; margin-bottom: 12px; }
+
+  .result-title {
+    font-family: 'Playfair Display', serif;
+    font-size: 1.5rem;
+    color: var(--cream);
+    margin-bottom: 6px;
+  }
+
+  .result-song {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.8rem;
+    color: var(--gold);
+    letter-spacing: 0.1em;
+    margin-bottom: 6px;
+  }
+
+  .result-album {
+    font-size: 0.8rem;
+    color: rgba(255,255,255,0.4);
+    margin-bottom: 24px;
+  }
+
+  .next-btn {
+    background: var(--gold);
+    border: none;
+    border-radius: 10px;
+    padding: 13px 32px;
+    font-family: 'DM Mono', monospace;
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: var(--dark);
+    cursor: pointer;
+    transition: opacity 0.2s;
+  }
+
+  .next-btn:hover { opacity: 0.85; }
+
+  /* Score */
+  .score-bar {
+    text-align: center;
+    margin-bottom: 20px;
+    font-family: 'DM Mono', monospace;
+    font-size: 0.72rem;
+    color: var(--mid);
+    letter-spacing: 0.1em;
+  }
+
+  .score-bar span { color: var(--dark); font-weight: 500; }
+
+  /* Playing animation */
+  @keyframes pulse {
+    0%, 100% { transform: scaleY(1); }
+    50% { transform: scaleY(1.6); }
+  }
+
+  .bar.playing {
+    background: var(--gold) !important;
+    animation: pulse 0.5s ease-in-out infinite;
+  }
+
+  /* Album art + player layout */
+  .player-top {
+    display: flex;
+    gap: 16px;
+    align-items: flex-start;
+    margin-bottom: 4px;
+  }
+
+  #album-art {
+    width: 72px;
+    height: 72px;
+    border-radius: 8px;
+    object-fit: cover;
+    flex-shrink: 0;
+    opacity: 0;
+    filter: blur(12px);
+    transition: opacity 0.5s, filter 0.5s;
+    border: 2px solid rgba(255,255,255,0.08);
+  }
+
+  #album-art.loaded {
+    opacity: 1;
+    filter: blur(0);
+  }
+
+  .player-main {
+    flex: 1;
+    min-width: 0;
+  }
+
+</style>
+</head>
+<body>
+
+<div class="wrapper">
+  <header>
+    <div class="logo">Zacky<em>ordle</em></div>
+    <div class="tagline">Can you name that song?</div>
+  </header>
+
+  <div class="score-bar">Score: <span id="score">0</span> &nbsp;|&nbsp; Song #<span id="round-num">1</span></div>
+
+  <div class="lives" id="lives"></div>
+
+  <div class="player-card" id="player-card">
+    <div class="player-top">
+      <img id="album-art" src="" alt="Album art" style="display:none" />
+      <div class="player-main">
+        <div class="round-label" id="round-label">GUESS 1 OF 5 — LISTEN CAREFULLY</div>
+        <div class="waveform" id="waveform"></div>
+        <div class="time-info">
+          <span class="time-display" id="time-display">0.0s</span>
+          <span class="reveal-label" id="reveal-label">▶ 1 second</span>
+        </div>
+      </div>
+    </div>
+    <button class="play-btn" id="play-btn">
+      <span class="play-icon">▶</span>
+      <span id="play-btn-text">Play Clip</span>
+    </button>
+  </div>
+
+  <div class="guesses-section">
+    <div class="guess-slots" id="guess-slots"></div>
+    <div class="input-row">
+      <div class="autocomplete-wrap">
+        <input type="text" class="song-input" id="song-input" placeholder="Name that tune…" autocomplete="off" />
+        <div class="suggestions" id="suggestions" style="display:none"></div>
+      </div>
+      <button class="skip-btn" id="skip-btn">Skip</button>
+      <button class="guess-btn" id="guess-btn">Guess</button>
+    </div>
+  </div>
+
+  <div class="result-overlay" id="result-overlay">
+    <div class="result-emoji" id="result-emoji">🎉</div>
+    <div class="result-title" id="result-title">You got it!</div>
+    <div class="result-song" id="result-song"></div>
+    <div class="result-album" id="result-album"></div>
+    <button class="next-btn" id="next-btn">Next Song →</button>
+  </div>
+</div>
+
+<script>
+// ─── SONG DATA — Zackyordle Custom List ──────────────────────────────────────
+const SONGS = [
+  { title: "Oh! Darling", artist: "The Beatles", itunesQuery: "Oh! Darling The Beatles" },
+  { title: "Something", artist: "The Beatles", itunesQuery: "Something The Beatles" },
+  { title: "What Is Life", artist: "George Harrison", itunesQuery: "What Is Life George Harrison" },
+  { title: "Positively 4th Street", artist: "Bob Dylan", itunesQuery: "Positively 4th Street Bob Dylan" },
+  { title: "Every Breath You Take", artist: "The Police", itunesQuery: "Every Breath You Take The Police" },
+  { title: "Malibu", artist: "Hole", itunesQuery: "Malibu Hole" },
+  { title: "Handle With Care", artist: "Traveling Wilburys", itunesQuery: "Handle With Care Traveling Wilburys" },
+  { title: "She Came In Through The Bathroom Window", artist: "The Beatles", itunesQuery: "She Came In Through The Bathroom Window The Beatles" },
+  { title: "Another Saturday Night", artist: "Sam Cooke", itunesQuery: "Another Saturday Night Sam Cooke" },
+  { title: "Got To Get You Into My Life", artist: "The Beatles", itunesQuery: "Got To Get You Into My Life The Beatles" },
+  { title: "Sunglasses At Night", artist: "Corey Hart", itunesQuery: "Sunglasses At Night Corey Hart" },
+  { title: "Golden Slumbers", artist: "The Beatles", itunesQuery: "Golden Slumbers The Beatles" },
+  { title: "When I\'m Sixty Four", artist: "The Beatles", itunesQuery: "When Im Sixty Four The Beatles" },
+  { title: "Good Morning Good Morning", artist: "The Beatles", itunesQuery: "Good Morning Good Morning The Beatles" },
+  { title: "Getting Better", artist: "The Beatles", itunesQuery: "Getting Better The Beatles" },
+  { title: "Do You Want To Know A Secret", artist: "The Beatles", itunesQuery: "Do You Want To Know A Secret The Beatles" },
+  { title: "You Won\'t See Me", artist: "The Beatles", itunesQuery: "You Wont See Me The Beatles" },
+  { title: "Love You To", artist: "The Beatles", itunesQuery: "Love You To The Beatles" },
+  { title: "Here, There And Everywhere", artist: "The Beatles", itunesQuery: "Here, There And Everywhere The Beatles" },
+  { title: "I Want To Tell You", artist: "The Beatles", itunesQuery: "I Want To Tell You The Beatles" },
+  { title: "Sgt. Pepper\'s Lonely Hearts Club Band", artist: "The Beatles", itunesQuery: "Sgt. Peppers Lonely Hearts Club Band The Beatles" },
+  { title: "With A Little Help From My Friends", artist: "The Beatles", itunesQuery: "With A Little Help From My Friends The Beatles" },
+  { title: "Lucy In The Sky With Diamonds", artist: "The Beatles", itunesQuery: "Lucy In The Sky With Diamonds The Beatles" },
+  { title: "Lovely Rita", artist: "The Beatles", itunesQuery: "Lovely Rita The Beatles" },
+  { title: "Your Mother Should Know", artist: "The Beatles", itunesQuery: "Your Mother Should Know The Beatles" },
+  { title: "Penny Lane", artist: "The Beatles", itunesQuery: "Penny Lane The Beatles" },
+  { title: "While My Guitar Gently Weeps", artist: "The Beatles", itunesQuery: "While My Guitar Gently Weeps The Beatles" },
+  { title: "Martha My Dear", artist: "The Beatles", itunesQuery: "Martha My Dear The Beatles" },
+  { title: "Get Off Of My Cloud", artist: "The Rolling Stones", itunesQuery: "Get Off Of My Cloud The Rolling Stones" },
+  { title: "Crackerbox Palace", artist: "George Harrison", itunesQuery: "Crackerbox Palace George Harrison" },
+  { title: "Ballad of Sir Frankie Crisp (Let It Roll)", artist: "George Harrison", itunesQuery: "Ballad of Sir Frankie Crisp (Let It Roll) George Harrison" },
+  { title: "Wah-Wah", artist: "George Harrison", itunesQuery: "Wah-Wah George Harrison" },
+  { title: "Let It Down", artist: "George Harrison", itunesQuery: "Let It Down George Harrison" },
+  { title: "Octopus\'s Garden", artist: "The Beatles", itunesQuery: "Octopuss Garden The Beatles" },
+  { title: "Here Comes The Sun", artist: "The Beatles", itunesQuery: "Here Comes The Sun The Beatles" },
+  { title: "Her Majesty", artist: "The Beatles", itunesQuery: "Her Majesty The Beatles" },
+  { title: "Misery", artist: "The Beatles", itunesQuery: "Misery The Beatles" },
+  { title: "All My Loving", artist: "The Beatles", itunesQuery: "All My Loving The Beatles" },
+  { title: "Nowhere Man", artist: "The Beatles", itunesQuery: "Nowhere Man The Beatles" },
+  { title: "Get Back", artist: "The Beatles", itunesQuery: "Get Back The Beatles" },
+  { title: "Day Tripper", artist: "The Beatles", itunesQuery: "Day Tripper The Beatles" },
+  { title: "I Want To Hold Your Hand", artist: "The Beatles", itunesQuery: "I Want To Hold Your Hand The Beatles" },
+  { title: "Beautiful Girls", artist: "Sean Kingston", itunesQuery: "Beautiful Girls Sean Kingston" },
+  { title: "Maneater", artist: "Daryl Hall & John Oates", itunesQuery: "Maneater Daryl Hall & John Oates" },
+  { title: "I Saw Her Standing There", artist: "The Beatles", itunesQuery: "I Saw Her Standing There The Beatles" },
+  { title: "Anna (Go To Him)", artist: "The Beatles", itunesQuery: "Anna (Go To Him) The Beatles" },
+  { title: "Twist And Shout", artist: "The Beatles", itunesQuery: "Twist And Shout The Beatles" },
+  { title: "Monkberry Moon Delight", artist: "Paul McCartney;Linda McCartney", itunesQuery: "Monkberry Moon Delight Paul McCartney" },
+  { title: "I Me Mine", artist: "The Beatles", itunesQuery: "I Me Mine The Beatles" },
+  { title: "Wouldn\'t It Be Nice", artist: "The Beach Boys", itunesQuery: "Wouldnt It Be Nice The Beach Boys" },
+  { title: "Eight Days A Week", artist: "The Beatles", itunesQuery: "Eight Days A Week The Beatles" },
+  { title: "Hey, Hey, What Can I Do", artist: "Led Zeppelin", itunesQuery: "Hey, Hey, What Can I Do Led Zeppelin" },
+  { title: "You\'re Going To Lose That Girl", artist: "The Beatles", itunesQuery: "Youre Going To Lose That Girl The Beatles" },
+  { title: "Smooth (feat. Rob Thomas)", artist: "Santana;Rob Thomas", itunesQuery: "Smooth (feat. Rob Thomas) Santana" },
+  { title: "Think For Yourself", artist: "The Beatles", itunesQuery: "Think For Yourself The Beatles" },
+  { title: "Gimme Three Steps", artist: "Lynyrd Skynyrd", itunesQuery: "Gimme Three Steps Lynyrd Skynyrd" },
+  { title: "Hard To Handle", artist: "The Black Crowes", itunesQuery: "Hard To Handle The Black Crowes" },
+  { title: "American Girl", artist: "Tom Petty and the Heartbreakers", itunesQuery: "American Girl Tom Petty and the Heartbreakers" },
+  { title: "Stuck In The Middle With You", artist: "Stealers Wheel", itunesQuery: "Stuck In The Middle With You Stealers Wheel" },
+  { title: "Fortunate Son (John\'s Version)", artist: "John Fogerty", itunesQuery: "Fortunate Son (Johns Version) John Fogerty" },
+  { title: "Fortunate Son", artist: "Creedence Clearwater Revival", itunesQuery: "Fortunate Son Creedence Clearwater Revival" },
+  { title: "Tuesday\'s Gone", artist: "Lynyrd Skynyrd", itunesQuery: "Tuesdays Gone Lynyrd Skynyrd" },
+  { title: "Born to Run", artist: "Bruce Springsteen", itunesQuery: "Born to Run Bruce Springsteen" },
+  { title: "Lodi", artist: "Creedence Clearwater Revival", itunesQuery: "Lodi Creedence Clearwater Revival" },
+  { title: "Honky Tonk Women", artist: "The Rolling Stones", itunesQuery: "Honky Tonk Women The Rolling Stones" },
+  { title: "Bad Moon Rising", artist: "Creedence Clearwater Revival", itunesQuery: "Bad Moon Rising Creedence Clearwater Revival" },
+  { title: "Lodi (John\'s Version)", artist: "John Fogerty", itunesQuery: "Lodi (Johns Version) John Fogerty" },
+  { title: "Lookin\' Out My Back Door", artist: "Creedence Clearwater Revival", itunesQuery: "Lookin Out My Back Door Creedence Clearwater Revival" },
+  { title: "Under My Thumb", artist: "The Rolling Stones", itunesQuery: "Under My Thumb The Rolling Stones" },
+  { title: "Down South Jukin\'", artist: "Lynyrd Skynyrd", itunesQuery: "Down South Jukin Lynyrd Skynyrd" },
+  { title: "Build Me Up Buttercup", artist: "The Foundations", itunesQuery: "Build Me Up Buttercup The Foundations" },
+  { title: "Paradise By the Dashboard Light", artist: "Meat Loaf", itunesQuery: "Paradise By the Dashboard Light Meat Loaf" },
+  { title: "Up Around The Bend", artist: "Creedence Clearwater Revival", itunesQuery: "Up Around The Bend Creedence Clearwater Revival" },
+  { title: "A Hard Day\'s Night", artist: "The Beatles", itunesQuery: "A Hard Days Night The Beatles" },
+  { title: "The Big Race", artist: "Randy Newman", itunesQuery: "The Big Race Randy Newman" },
+  { title: "Don\'t Chase Me Around - from the MGM film GAS-S-S-S", artist: "Robert Corff", itunesQuery: "Dont Chase Me Around - from the MGM film GAS-S-S-S Robert Corff" },
+  { title: "Jungle Love", artist: "Steve Miller Band", itunesQuery: "Jungle Love Steve Miller Band" },
+  { title: "Jet Airliner", artist: "Steve Miller Band", itunesQuery: "Jet Airliner Steve Miller Band" },
+  { title: "Be My Baby", artist: "The Ronettes", itunesQuery: "Be My Baby The Ronettes" },
+  { title: "Photograph", artist: "Def Leppard", itunesQuery: "Photograph Def Leppard" },
+  { title: "I Believe in a Thing Called Love", artist: "The Darkness", itunesQuery: "I Believe in a Thing Called Love The Darkness" },
+  { title: "(I Can\'t Get No) Satisfaction", artist: "The Rolling Stones", itunesQuery: "(I Cant Get No) Satisfaction The Rolling Stones" },
+  { title: "My Life", artist: "Billy Joel", itunesQuery: "My Life Billy Joel" },
+  { title: "Shambala", artist: "Three Dog Night", itunesQuery: "Shambala Three Dog Night" },
+  { title: "Dreams", artist: "Fleetwood Mac", itunesQuery: "Dreams Fleetwood Mac" },
+  { title: "Everywhere", artist: "Fleetwood Mac", itunesQuery: "Everywhere Fleetwood Mac" },
+  { title: "Go Your Own Way", artist: "Fleetwood Mac", itunesQuery: "Go Your Own Way Fleetwood Mac" },
+  { title: "Happiness Is A Warm Gun", artist: "The Beatles", itunesQuery: "Happiness Is A Warm Gun The Beatles" },
+  { title: "Dancing in the Moonlight", artist: "King Harvest", itunesQuery: "Dancing in the Moonlight King Harvest" },
+  { title: "Band On The Run", artist: "Paul McCartney;Wings", itunesQuery: "Band On The Run Paul McCartney" },
+  { title: "Summer Of \'69", artist: "Bryan Adams", itunesQuery: "Summer Of 69 Bryan Adams" },
+  { title: "Beware of Darkness", artist: "George Harrison", itunesQuery: "Beware of Darkness George Harrison" },
+  { title: "Not Guilty", artist: "George Harrison", itunesQuery: "Not Guilty George Harrison" },
+  { title: "Here Comes the Moon", artist: "George Harrison", itunesQuery: "Here Comes the Moon George Harrison" },
+  { title: "Blow Away", artist: "George Harrison", itunesQuery: "Blow Away George Harrison" },
+  { title: "Soft Touch", artist: "George Harrison", itunesQuery: "Soft Touch George Harrison" },
+  { title: "Monday Morning", artist: "Fleetwood Mac", itunesQuery: "Monday Morning Fleetwood Mac" },
+  { title: "True Love", artist: "George Harrison", itunesQuery: "True Love George Harrison" },
+  { title: "Unconsciousness Rules", artist: "George Harrison", itunesQuery: "Unconsciousness Rules George Harrison" },
+  { title: "Hold On", artist: "John Lennon", itunesQuery: "Hold On John Lennon" },
+  { title: "Badlands", artist: "Bruce Springsteen", itunesQuery: "Badlands Bruce Springsteen" },
+  { title: "I\'ve Just Seen A Face", artist: "The Beatles", itunesQuery: "Ive Just Seen A Face The Beatles" },
+  { title: "The Night Before", artist: "The Beatles", itunesQuery: "The Night Before The Beatles" },
+  { title: "Fish on the Sand", artist: "George Harrison", itunesQuery: "Fish on the Sand George Harrison" },
+  { title: "Wreck of the Hesperus", artist: "George Harrison", itunesQuery: "Wreck of the Hesperus George Harrison" },
+  { title: "(Just Like) Starting Over", artist: "John Lennon", itunesQuery: "(Just Like) Starting Over John Lennon" },
+  { title: "Back In The U.S.S.R.", artist: "The Beatles", itunesQuery: "Back In The U.S.S.R. The Beatles" },
+  { title: "She\'s Leaving Home", artist: "The Beatles", itunesQuery: "Shes Leaving Home The Beatles" },
+  { title: "What You\'re Doing", artist: "The Beatles", itunesQuery: "What Youre Doing The Beatles" },
+  { title: "I Want You (She\'s So Heavy)", artist: "The Beatles", itunesQuery: "I Want You (Shes So Heavy) The Beatles" },
+  { title: "You Never Give Me Your Money", artist: "The Beatles", itunesQuery: "You Never Give Me Your Money The Beatles" },
+  { title: "Everybody\'s Got Something To Hide Except Me And My Monkey", artist: "The Beatles", itunesQuery: "Everybodys Got Something To Hide Except Me And My Monkey The Beatles" },
+  { title: "I Want You Back", artist: "The Jackson 5", itunesQuery: "I Want You Back The Jackson 5" },
+  { title: "Strawberry Fields Forever", artist: "The Beatles", itunesQuery: "Strawberry Fields Forever The Beatles" },
+  { title: "Strawberry Fields Forever - Take 26", artist: "The Beatles", itunesQuery: "Strawberry Fields Forever - Take 26 The Beatles" },
+  { title: "I Need You (Take 1)", artist: "The Beatles", itunesQuery: "I Need You (Take 1) The Beatles" },
+  { title: "Do You Believe in Magic?", artist: "The Lovin\' Spoonful", itunesQuery: "Do You Believe in Magic? The Lovin Spoonful" },
+  { title: "Ocean Man", artist: "Ween", itunesQuery: "Ocean Man Ween" },
+  { title: "Long Cool Woman (In a Black Dress)", artist: "The Hollies", itunesQuery: "Long Cool Woman (In a Black Dress) The Hollies" },
+  { title: "Psycho Killer", artist: "Talking Heads", itunesQuery: "Psycho Killer Talking Heads" },
+  { title: "Dear Future Husband", artist: "Meghan Trainor", itunesQuery: "Dear Future Husband Meghan Trainor" },
+  { title: "Run That Race", artist: "Dan Auerbach", itunesQuery: "Run That Race Dan Auerbach" },
+  { title: "It Won\'t Be Long", artist: "The Beatles", itunesQuery: "It Wont Be Long The Beatles" },
+  { title: "Savoy Truffle", artist: "The Beatles", itunesQuery: "Savoy Truffle The Beatles" },
+  { title: "Got My Mind Set on You", artist: "George Harrison", itunesQuery: "Got My Mind Set on You George Harrison" },
+  { title: "Till There Was You", artist: "The Beatles", itunesQuery: "Till There Was You The Beatles" },
+  { title: "You Really Got A Hold On Me", artist: "The Beatles", itunesQuery: "You Really Got A Hold On Me The Beatles" },
+  { title: "Tell Me Why", artist: "The Beatles", itunesQuery: "Tell Me Why The Beatles" },
+  { title: "Another Girl", artist: "The Beatles", itunesQuery: "Another Girl The Beatles" },
+  { title: "Ticket To Ride", artist: "The Beatles", itunesQuery: "Ticket To Ride The Beatles" },
+  { title: "I\'m So Tired", artist: "The Beatles", itunesQuery: "Im So Tired The Beatles" },
+  { title: "That\'s What It Takes", artist: "George Harrison", itunesQuery: "Thats What It Takes George Harrison" },
+  { title: "This Is Love", artist: "George Harrison", itunesQuery: "This Is Love George Harrison" },
+  { title: "While My Guitar Gently Weeps", artist: "George Harrison", itunesQuery: "While My Guitar Gently Weeps George Harrison" },
+  { title: "If Not For You", artist: "George Harrison", itunesQuery: "If Not For You George Harrison" },
+  { title: "I\'m On Fire", artist: "Bruce Springsteen", itunesQuery: "Im On Fire Bruce Springsteen" },
+  { title: "Eleanor Rigby", artist: "The Beatles", itunesQuery: "Eleanor Rigby The Beatles" },
+  { title: "Wait", artist: "The Beatles", itunesQuery: "Wait The Beatles" },
+  { title: "Michelle", artist: "The Beatles", itunesQuery: "Michelle The Beatles" },
+  { title: "If I Needed Someone", artist: "The Beatles", itunesQuery: "If I Needed Someone The Beatles" },
+  { title: "I Won\'t Back Down", artist: "Tom Petty", itunesQuery: "I Wont Back Down Tom Petty" },
+  { title: "Something", artist: "George Harrison", itunesQuery: "Something George Harrison" },
+  { title: "Woman Don\'t You Cry for Me", artist: "George Harrison", itunesQuery: "Woman Dont You Cry for Me George Harrison" },
+  { title: "Two Of Us", artist: "The Beatles", itunesQuery: "Two Of Us The Beatles" },
+  { title: "Let It Be", artist: "The Beatles", itunesQuery: "Let It Be The Beatles" },
+  { title: "Jet", artist: "Paul McCartney;Wings", itunesQuery: "Jet Paul McCartney" },
+  { title: "Mrs. Vandebilt", artist: "Paul McCartney;Wings", itunesQuery: "Mrs. Vandebilt Paul McCartney" },
+  { title: "Let Me Roll It", artist: "Paul McCartney;Wings", itunesQuery: "Let Me Roll It Paul McCartney" },
+  { title: "That\'s Not Me", artist: "The Beach Boys", itunesQuery: "Thats Not Me The Beach Boys" },
+  { title: "God Only Knows", artist: "The Beach Boys", itunesQuery: "God Only Knows The Beach Boys" },
+  { title: "The Long One - Comprising of ‘You Never Give Me Your Money’, ’Sun King’/’Mean Mr Mustard’, ‘Her Majesty’, ‘Polythene Pam’/’She Came In Through The Bathroom Window’, ’Golden Slumbers’/ ’Carry That Weight’, ’The End’", artist: "The Beatles", itunesQuery: "The Long One - Comprising of ‘You Never Give Me Your Money’, ’Sun King’/’Mean Mr Mustard’, ‘Her Majesty’, ‘Polythene Pam’/’She Came In Through The Bathroom Window’, ’Golden Slumbers’/ ’Carry That Weight’, ’The End’ The Beatles" },
+  { title: "Dig A Pony", artist: "The Beatles", itunesQuery: "Dig A Pony The Beatles" },
+  { title: "Not Guilty - Take 102 Edited", artist: "The Beatles", itunesQuery: "Not Guilty - Take 102 Edited The Beatles" },
+  { title: "Without Expression", artist: "John Mellencamp", itunesQuery: "Without Expression John Mellencamp" },
+  { title: "No Reply", artist: "The Beatles", itunesQuery: "No Reply The Beatles" },
+  { title: "I\'ll Follow The Sun", artist: "The Beatles", itunesQuery: "Ill Follow The Sun The Beatles" },
+  { title: "Kansas City / Hey-Hey-Hey-Hey - Medley / Remastered 2009", artist: "The Beatles", itunesQuery: "Kansas City / Hey-Hey-Hey-Hey - Medley / Remastered 2009 The Beatles" },
+  { title: "I Don\'t Want To Spoil The Party", artist: "The Beatles", itunesQuery: "I Dont Want To Spoil The Party The Beatles" },
+  { title: "Lady Madonna", artist: "The Beatles", itunesQuery: "Lady Madonna The Beatles" },
+  { title: "Things We Said Today", artist: "The Beatles", itunesQuery: "Things We Said Today The Beatles" },
+  { title: "You Can\'t Do That", artist: "The Beatles", itunesQuery: "You Cant Do That The Beatles" },
+  { title: "For You Blue", artist: "The Beatles", itunesQuery: "For You Blue The Beatles" },
+  { title: "Knockin\' On Heaven\'s Door", artist: "Bob Dylan", itunesQuery: "Knockin On Heavens Door Bob Dylan" },
+  { title: "The Ballad Of John And Yoko", artist: "The Beatles", itunesQuery: "The Ballad Of John And Yoko The Beatles" },
+  { title: "Yes It Is", artist: "The Beatles", itunesQuery: "Yes It Is The Beatles" },
+  { title: "P2 Vatican Blues (Last Saturday Night)", artist: "George Harrison", itunesQuery: "P2 Vatican Blues (Last Saturday Night) George Harrison" },
+  { title: "Looking for My Life", artist: "George Harrison", itunesQuery: "Looking for My Life George Harrison" },
+  { title: "Between the Devil and the Deep Blue Sea", artist: "George Harrison", itunesQuery: "Between the Devil and the Deep Blue Sea George Harrison" },
+  { title: "Taxman", artist: "The Beatles", itunesQuery: "Taxman The Beatles" },
+  { title: "She Said She Said", artist: "The Beatles", itunesQuery: "She Said She Said The Beatles" },
+  { title: "And Your Bird Can Sing", artist: "The Beatles", itunesQuery: "And Your Bird Can Sing The Beatles" },
+  { title: "For No One", artist: "The Beatles", itunesQuery: "For No One The Beatles" },
+  { title: "Get Back - Rooftop Performance / Take 2", artist: "The Beatles", itunesQuery: "Get Back - Rooftop Performance / Take 2 The Beatles" },
+  { title: "I Know There\'s An Answer", artist: "The Beach Boys", itunesQuery: "I Know Theres An Answer The Beach Boys" },
+  { title: "Here Today", artist: "The Beach Boys", itunesQuery: "Here Today The Beach Boys" },
+  { title: "I Just Wasn\'t Made For These Times", artist: "The Beach Boys", itunesQuery: "I Just Wasnt Made For These Times The Beach Boys" },
+  { title: "Already Gone", artist: "Eagles", itunesQuery: "Already Gone Eagles" },
+  { title: "Take It Easy", artist: "Eagles", itunesQuery: "Take It Easy Eagles" },
+  { title: "I Want To Tell You", artist: "George Harrison", itunesQuery: "I Want To Tell You George Harrison" },
+  { title: "Don\'t Let Me Down", artist: "The Beatles", itunesQuery: "Dont Let Me Down The Beatles" },
+  { title: "Don\'t Let Me Down - Rooftop Performance / Take 1", artist: "The Beatles", itunesQuery: "Dont Let Me Down - Rooftop Performance / Take 1 The Beatles" },
+  { title: "Mother and Child Reunion", artist: "Paul Simon", itunesQuery: "Mother and Child Reunion Paul Simon" },
+  { title: "The Game of Love (feat. Michelle Branch) - Main / Radio Mix", artist: "Santana;Michelle Branch", itunesQuery: "The Game of Love (feat. Michelle Branch) - Main / Radio Mix Santana" },
+  { title: "My Sweet Lord", artist: "George Harrison", itunesQuery: "My Sweet Lord George Harrison" },
+  { title: "Dilemma", artist: "Nelly;Kelly Rowland", itunesQuery: "Dilemma Nelly" },
+  { title: "A Hard Day\'s Night - Take 1", artist: "The Beatles", itunesQuery: "A Hard Days Night - Take 1 The Beatles" },
+  { title: "From Me To You", artist: "The Beatles", itunesQuery: "From Me To You The Beatles" },
+  { title: "It\'s Only Love", artist: "The Beatles", itunesQuery: "Its Only Love The Beatles" },
+  { title: "I Need You", artist: "The Beatles", itunesQuery: "I Need You The Beatles" },
+  { title: "We Can Work It Out", artist: "The Beatles", itunesQuery: "We Can Work It Out The Beatles" },
+  { title: "Carry That Weight", artist: "The Beatles", itunesQuery: "Carry That Weight The Beatles" },
+  { title: "Hey Jude", artist: "The Beatles", itunesQuery: "Hey Jude The Beatles" },
+  { title: "Faster", artist: "George Harrison", itunesQuery: "Faster George Harrison" },
+  { title: "Should I Stay or Should I Go", artist: "The Clash", itunesQuery: "Should I Stay or Should I Go The Clash" },
+  { title: "Sexy Sadie", artist: "The Beatles", itunesQuery: "Sexy Sadie The Beatles" },
+  { title: "Real Love", artist: "The Beatles", itunesQuery: "Real Love The Beatles" },
+  { title: "Ain\'t No Mountain High Enough", artist: "Marvin Gaye;Tammi Terrell", itunesQuery: "Aint No Mountain High Enough Marvin Gaye" },
+  { title: "Ob-La-Di, Ob-La-Da - Take 3", artist: "The Beatles", itunesQuery: "Ob-La-Di, Ob-La-Da - Take 3 The Beatles" },
+  { title: "Goodbye - Home Demo", artist: "The Beatles", itunesQuery: "Goodbye - Home Demo The Beatles" },
+  { title: "I Dig Love - Day 1 Demo - Take 1", artist: "George Harrison", itunesQuery: "I Dig Love - Day 1 Demo - Take 1 George Harrison" },
+  { title: "I\'m Looking Through You", artist: "The Beatles", itunesQuery: "Im Looking Through You The Beatles" },
+  { title: "The Word", artist: "The Beatles", itunesQuery: "The Word The Beatles" },
+  { title: "Shout", artist: "The Beatles", itunesQuery: "Shout The Beatles" },
+  { title: "Every Little Thing", artist: "The Beatles", itunesQuery: "Every Little Thing The Beatles" },
+  { title: "Woman", artist: "John Lennon", itunesQuery: "Woman John Lennon" },
+  { title: "No Matter What", artist: "Badfinger", itunesQuery: "No Matter What Badfinger" },
+  { title: "Isn\'t It a Pity", artist: "George Harrison", itunesQuery: "Isnt It a Pity George Harrison" },
+  { title: "Rescue Me", artist: "Fontella Bass", itunesQuery: "Rescue Me Fontella Bass" },
+  { title: "Can You Feel the Love Tonight", artist: "Joseph Williams;Sally Dworsky;Nathan Lane;Ernie Sabella;Kristle Edwards", itunesQuery: "Can You Feel the Love Tonight Joseph Williams" },
+  { title: "Maybe I’m Amazed", artist: "Paul McCartney", itunesQuery: "Maybe I’m Amazed Paul McCartney" },
+];
+// All song titles for autocomplete
+const ALL_TITLES = SONGS.map(s => s.title);
+
+// Clip durations per guess (seconds)
+const CLIP_DURATIONS = [1, 2, 4, 7, 11];
+const MAX_GUESSES = 5;
+
+// ─── STATE ────────────────────────────────────────────────────────────────────
+let score = 0;
+let roundCount = 0;
+let guessCount = 0;
+let guesses = [];
+let gameOver = false;
+let isPlaying = false;
+let waveformInterval = null;
+let songQueue = [];  // endless shuffled queue
+
+function currentSong() {
+  return songQueue[0];
+}
+
+function advanceQueue() {
+  songQueue.shift();
+  if (songQueue.length === 0) {
+    // Reshuffle entire catalog when exhausted
+    songQueue = [...SONGS].sort(() => Math.random() - 0.5);
+  }
+}
+
+// ─── INIT ─────────────────────────────────────────────────────────────────────
+function init() {
+  songQueue = [...SONGS].sort(() => Math.random() - 0.5);
+  roundCount = 0;
+  score = 0;
+  updateScoreDisplay();
+  startRound();
+}
+function startRound() {
+  guessCount = 0;
+  guesses = [];
+  gameOver = false;
+
+  updateScoreDisplay();
+  renderLives();
+  renderGuessSlots();
+  updateRoundLabel();
+  updatePlayBtn();
+  resetWaveform();
+
+  document.getElementById('song-input').value = '';
+  document.getElementById('song-input').disabled = false;
+  document.getElementById('guess-btn').disabled = false;
+  document.getElementById('skip-btn').disabled = false;
+  document.getElementById('result-overlay').classList.remove('show');
+  document.getElementById('player-card').style.display = '';
+  document.getElementById('suggestions').style.display = 'none';
+
+  const artEl = document.getElementById('album-art');
+  if (artEl) { artEl.style.display = 'none'; artEl.classList.remove('loaded'); }
+
+  loadAudio(currentSong());
+}
+
+// ─── AUDIO ────────────────────────────────────────────────────────────────────
+// iTunes Search API doesn't allow direct browser fetch (CORS) or JSONP.
+// We route the search through allorigins.win, a free CORS proxy.
+// The preview MP3 itself is played via an <audio> element (media bypasses CORS).
+
+let audioEl = null; // single reusable <audio> element
+let clipTimer = null;
+
+async function itunesSearch(query) {
+  const itunesUrl = `https://itunes.apple.com/search?term=${encodeURIComponent(query)}&entity=song&limit=8&country=us`;
+  const proxies = [
+    () => fetch(`https://corsproxy.io/?${encodeURIComponent(itunesUrl)}`),
+    () => fetch(`https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(itunesUrl)}`),
+    () => fetch(`https://thingproxy.freeboard.io/fetch/${itunesUrl}`),
+  ];
+  for (const proxyFn of proxies) {
+    try {
+      const resp = await proxyFn();
+      if (!resp.ok) continue;
+      const data = await resp.json();
+      if (data && data.results !== undefined) return data;
+      if (data && data.contents) return JSON.parse(data.contents);
+    } catch(e) {
+      // try next proxy
+    }
+  }
+  throw new Error('All proxies failed');
+}
+
+async function loadAudio(song) {
+  setPlayBtnLoading(true);
+
+  // Stop & detach any previous audio immediately
+  if (audioEl) {
+    audioEl.pause();
+    audioEl.oncanplaythrough = null;
+    audioEl.onerror = null;
+    audioEl.src = '';
+  }
+
+  // Tag this load so stale responses from previous rounds are ignored
+  const loadId = Date.now();
+  song._loadId = loadId;
+
+  try {
+    const data = await itunesSearch(song.itunesQuery);
+
+    // If a new round started while we were fetching, bail out
+    if (currentSong()._loadId !== loadId) return;
+
+    const results = data.results || [];
+    // Match by the song's known artist first, then any result with a preview
+    const artistLower = (song.artist || '').toLowerCase().split(/[;&]/)[0].trim();
+    let track = results.find(r =>
+      r.previewUrl && r.artistName && r.artistName.toLowerCase().includes(artistLower)
+    );
+    if (!track) track = results.find(r => r.previewUrl);
+    if (!track) throw new Error('No preview found for: ' + song.title);
+
+    song.previewUrl = track.previewUrl;
+    song.artworkUrl = (track.artworkUrl100 || '').replace('100x100bb', '300x300bb');
+
+    // Album art fade-in
+    const artEl = document.getElementById('album-art');
+    if (song.artworkUrl && artEl) {
+      artEl.onload = () => artEl.classList.add('loaded');
+      artEl.src = song.artworkUrl;
+      artEl.style.display = 'block';
+    }
+
+    // Create a fresh Audio element each round — avoids stale state issues
+    audioEl = new Audio();
+    audioEl.preload = 'auto';
+
+    // Wait for enough audio to be buffered before enabling play
+    await new Promise((resolve, reject) => {
+      audioEl.oncanplaythrough = resolve;
+      audioEl.onerror = () => reject(new Error('Audio element error'));
+      audioEl.src = song.previewUrl;
+      audioEl.load();
+      // Fallback: enable after 4s even if canplaythrough hasn't fired
+      setTimeout(resolve, 4000);
+    });
+
+    // Only update UI if we're still on the same round
+    if (currentSong()._loadId === loadId) {
+      setPlayBtnLoading(false);
+    }
+
+  } catch(e) {
+    console.warn('Audio load error:', e);
+    if (currentSong()._loadId === loadId) {
+      document.getElementById('play-btn-text').textContent = 'Preview unavailable';
+      document.getElementById('play-btn').disabled = true;
+    }
+  }
+}
+
+function setPlayBtnLoading(loading) {
+  const btn = document.getElementById('play-btn');
+  const txt = document.getElementById('play-btn-text');
+  if (loading) {
+    txt.textContent = 'Loading preview…';
+    btn.disabled = true;
+  } else if (!isPlaying) {
+    txt.textContent = 'Play Clip';
+    btn.disabled = false;
+  }
+}
+
+function playClip() {
+  if (isPlaying || !audioEl || !audioEl.src) return;
+
+  const duration = CLIP_DURATIONS[guessCount] || CLIP_DURATIONS[CLIP_DURATIONS.length - 1];
+
+  audioEl.currentTime = 0;
+  audioEl.play().catch(e => console.warn('Playback error:', e));
+
+  isPlaying = true;
+  animateWaveform(duration);
+  updatePlayBtn();
+
+  // Stop after clip duration
+  clearTimeout(clipTimer);
+  clipTimer = setTimeout(() => {
+    audioEl.pause();
+    isPlaying = false;
+    stopWaveformAnimation();
+    updatePlayBtn();
+  }, duration * 1000);
+}
+
+// ─── WAVEFORM ─────────────────────────────────────────────────────────────────
+const NUM_BARS = 48;
+
+function resetWaveform() {
+  const wf = document.getElementById('waveform');
+  wf.innerHTML = '';
+  for (let i = 0; i < NUM_BARS; i++) {
+    const bar = document.createElement('div');
+    bar.className = 'bar unplayed';
+    bar.style.height = (Math.random() * 36 + 10) + 'px';
+    wf.appendChild(bar);
+  }
+}
+
+function animateWaveform(duration) {
+  const bars = document.querySelectorAll('.bar');
+  const totalMs = duration * 1000;
+  const startTime = Date.now();
+
+  clearInterval(waveformInterval);
+  waveformInterval = setInterval(() => {
+    const elapsed = Date.now() - startTime;
+    const progress = Math.min(elapsed / totalMs, 1);
+    const playedBars = Math.floor(progress * NUM_BARS);
+
+    bars.forEach((bar, i) => {
+      if (i < playedBars) {
+        bar.className = 'bar played';
+      } else if (i === playedBars) {
+        bar.className = 'bar playing';
+      } else {
+        bar.className = 'bar unplayed';
+      }
+      // slight random height flicker on playing bar
+      if (i === playedBars) {
+        bar.style.height = (Math.random() * 40 + 15) + 'px';
+      }
+    });
+
+    const timeEl = document.getElementById('time-display');
+    timeEl.textContent = (elapsed / 1000).toFixed(1) + 's';
+
+    if (progress >= 1) {
+      clearInterval(waveformInterval);
+      bars.forEach(b => { b.classList.remove('playing'); });
+    }
+  }, 50);
+}
+
+function stopWaveformAnimation() {
+  clearInterval(waveformInterval);
+  document.querySelectorAll('.bar.playing').forEach(b => b.classList.remove('playing'));
+}
+
+// ─── UI UPDATES ───────────────────────────────────────────────────────────────
+function renderLives() {
+  const el = document.getElementById('lives');
+  el.innerHTML = '';
+  for (let i = 0; i < MAX_GUESSES; i++) {
+    const d = document.createElement('div');
+    d.className = 'life' + (i >= (MAX_GUESSES - guessCount) ? ' used' : '');
+    el.appendChild(d);
+  }
+}
+
+function renderGuessSlots() {
+  const el = document.getElementById('guess-slots');
+  el.innerHTML = '';
+  for (let i = 0; i < MAX_GUESSES; i++) {
+    const slot = document.createElement('div');
+    const guess = guesses[i];
+    if (!guess) {
+      slot.className = 'guess-slot empty' + (i === guessCount && !gameOver ? ' active' : '');
+      slot.textContent = i === guessCount && !gameOver ? 'Your guess…' : '';
+    } else if (guess.skipped) {
+      slot.className = 'guess-slot skipped';
+      slot.innerHTML = '<span class="icon">⤭</span> Skipped (+' + CLIP_DURATIONS[Math.min(i+1, CLIP_DURATIONS.length-1)] + 's unlocked)';
+    } else if (guess.correct) {
+      slot.className = 'guess-slot correct';
+      slot.innerHTML = '<span class="icon">✓</span>' + guess.text;
+    } else {
+      slot.className = 'guess-slot wrong';
+      slot.innerHTML = '<span class="icon">✗</span>' + guess.text;
+    }
+    el.appendChild(slot);
+  }
+}
+
+function updateRoundLabel() {
+  const duration = CLIP_DURATIONS[guessCount] || CLIP_DURATIONS[CLIP_DURATIONS.length - 1];
+  document.getElementById('round-label').textContent =
+    `GUESS ${guessCount + 1} OF ${MAX_GUESSES} — ${duration}S CLIP`;
+  document.getElementById('reveal-label').textContent = `▶ ${duration} second${duration !== 1 ? 's' : ''}`;
+}
+
+function updatePlayBtn() {
+  const btn = document.getElementById('play-btn');
+  const txt = document.getElementById('play-btn-text');
+  if (isPlaying) {
+    txt.textContent = 'Playing…';
+    btn.disabled = true;
+  } else {
+    txt.textContent = 'Play Clip';
+    btn.disabled = false;
+  }
+}
+
+function updateScoreDisplay() {
+  document.getElementById('score').textContent = score;
+  document.getElementById('round-num').textContent = roundCount + 1;
+}
+
+// ─── GUESSING ─────────────────────────────────────────────────────────────────
+function submitGuess(text) {
+  if (gameOver) return;
+  const input = text || document.getElementById('song-input').value.trim();
+  if (!input) return;
+
+  const correct = input.toLowerCase() === currentSong().title.toLowerCase();
+  guesses.push({ text: input, correct, skipped: false });
+  guessCount++;
+
+  document.getElementById('song-input').value = '';
+  document.getElementById('suggestions').style.display = 'none';
+
+  renderLives();
+  renderGuessSlots();
+
+  if (correct) {
+    endRound(true);
+  } else if (guessCount >= MAX_GUESSES) {
+    endRound(false);
+  } else {
+    updateRoundLabel();
+  }
+}
+
+function skipGuess() {
+  if (gameOver) return;
+  guesses.push({ text: '', skipped: true, correct: false });
+  guessCount++;
+  document.getElementById('song-input').value = '';
+  document.getElementById('suggestions').style.display = 'none';
+  renderLives();
+  renderGuessSlots();
+  if (guessCount >= MAX_GUESSES) {
+    endRound(false);
+  } else {
+    updateRoundLabel();
+  }
+}
+
+function endRound(won) {
+  gameOver = true;
+  if (audioEl) { audioEl.pause(); }
+  clearTimeout(clipTimer);
+  stopWaveformAnimation();
+  isPlaying = false;
+
+  document.getElementById('song-input').disabled = true;
+  document.getElementById('guess-btn').disabled = true;
+  document.getElementById('skip-btn').disabled = true;
+
+  const song = currentSong();
+  const overlay = document.getElementById('result-overlay');
+
+  if (won) {
+    const pointsEarned = MAX_GUESSES - guessCount + 1;
+    score += pointsEarned;
+    document.getElementById('result-emoji').textContent = guessCount === 1 ? '🎸' : guessCount <= 2 ? '🎶' : '🎵';
+    document.getElementById('result-title').textContent = guessCount === 1 ? 'First Try! Brilliant!' : `Got it in ${guessCount} guess${guessCount !== 1 ? 'es' : ''}!`;
+  } else {
+    document.getElementById('result-emoji').textContent = '😢';
+    document.getElementById('result-title').textContent = 'Better luck next time!';
+  }
+
+  document.getElementById('result-song').textContent = `"${song.title}"`;
+  document.getElementById('result-album').textContent = song.artist || song.album;
+  updateScoreDisplay();
+
+  overlay.classList.add('show');
+  document.getElementById('next-btn').textContent = 'Next Song →';
+}
+
+function nextRound() {
+  advanceQueue();
+  roundCount++;
+  startRound();
+}
+
+
+// ─── AUTOCOMPLETE ─────────────────────────────────────────────────────────────
+let highlightIndex = -1;
+
+document.getElementById('song-input').addEventListener('input', function() {
+  const val = this.value.trim().toLowerCase();
+  const sug = document.getElementById('suggestions');
+  if (!val) { sug.style.display = 'none'; return; }
+
+  const matches = ALL_TITLES.filter(t => t.toLowerCase().includes(val));
+  if (!matches.length) { sug.style.display = 'none'; return; }
+
+  sug.innerHTML = '';
+  highlightIndex = -1;
+  matches.slice(0, 8).forEach((m, i) => {
+    const item = document.createElement('div');
+    item.className = 'suggestion-item';
+    item.textContent = m;
+    item.addEventListener('mousedown', (e) => {
+      e.preventDefault();
+      document.getElementById('song-input').value = m;
+      sug.style.display = 'none';
+    });
+    sug.appendChild(item);
+  });
+  sug.style.display = 'block';
+});
+
+document.getElementById('song-input').addEventListener('keydown', function(e) {
+  const sug = document.getElementById('suggestions');
+  const items = sug.querySelectorAll('.suggestion-item');
+
+  if (e.key === 'ArrowDown') {
+    e.preventDefault();
+    highlightIndex = Math.min(highlightIndex + 1, items.length - 1);
+    items.forEach((it, i) => it.classList.toggle('highlighted', i === highlightIndex));
+    if (items[highlightIndex]) this.value = items[highlightIndex].textContent;
+  } else if (e.key === 'ArrowUp') {
+    e.preventDefault();
+    highlightIndex = Math.max(highlightIndex - 1, -1);
+    items.forEach((it, i) => it.classList.toggle('highlighted', i === highlightIndex));
+    if (highlightIndex >= 0 && items[highlightIndex]) this.value = items[highlightIndex].textContent;
+  } else if (e.key === 'Enter') {
+    e.preventDefault();
+    sug.style.display = 'none';
+    submitGuess();
+  } else if (e.key === 'Escape') {
+    sug.style.display = 'none';
+  }
+});
+
+document.getElementById('song-input').addEventListener('blur', () => {
+  setTimeout(() => { document.getElementById('suggestions').style.display = 'none'; }, 150);
+});
+
+// ─── EVENTS ───────────────────────────────────────────────────────────────────
+document.getElementById('play-btn').addEventListener('click', playClip);
+document.getElementById('guess-btn').addEventListener('click', () => submitGuess());
+document.getElementById('skip-btn').addEventListener('click', skipGuess);
+document.getElementById('next-btn').addEventListener('click', nextRound);
+
+// ─── START ────────────────────────────────────────────────────────────────────
+init();
+</script>
+</body>
+</html>
